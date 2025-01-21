@@ -1,0 +1,104 @@
+#!/usr/bin/bash
+
+help() {
+    echo
+    echo "This program will rename music files with the format 'tracknumber - artist - title'."
+    echo
+    echo "Provide the music files you wish to rename to this program as arguments."
+    echo "Also works with directories."
+    echo
+}
+
+main() {
+    #is empty?
+    if [ -z "$1" ] ; then
+        return
+    fi
+    #is a directory?
+    if [ -d "$1" ] ; then
+        cd "$1"
+        echo "Entered directory \"$1\""
+        main *
+        cd ".."
+        echo "Exited directory \"$1\""
+    fi
+    #separate old name from directory
+    oldName="$(basename "$1")"
+
+    lengthOfDirectoryString=$((${#1}-${#oldName}))
+    dir="${1:0:$lengthOfDirectoryString}"
+
+    #is a flac file?
+    if [[ "$oldName" =~ flac$ ]] ; then
+        flacFormat
+    #is a mp3 file?
+    elif [[ "$oldName" =~ mp3$ ]] ; then
+        mp3Format
+    fi
+    shift
+    main "$@"
+}
+
+flacFormat() {
+    format="flac"
+
+    tracknumber="$(metaflac --show-tag='tracknumber' "$dir""$oldName" | sed 's/^TRACKNUMBER=//')"
+
+    artist="$(metaflac --show-tag='artist' "$dir""$oldName" | sed 's/^ARTIST=//')"
+
+    title="$(metaflac --show-tag='title' "$dir""$oldName" | sed 's/^TITLE=//')"
+
+    moveFile
+}
+
+mp3Format() {
+    format="mp3"
+
+    tracknumber="$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
+
+    artist="$(ffprobe -loglevel error -show_entries format_tags=artist -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
+
+    title="$(ffprobe -loglevel error -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
+
+    moveFile
+}
+
+moveFile() {
+    #remove leading 0's
+    if [[ "$tracknumber" =~ ^0.*$ ]] ; then
+        tracknumber="${tracknumber:1}"
+    fi
+    #remove / in track number
+    tracknumber="$(echo "$tracknumber" | sed 's/\/.*$//')"
+    #create file name
+    newName="$(printf "%.2d - %s - %s.%s" "$tracknumber" "$artist" "$title" "$format")"
+
+    #replace characters not allowed in exFAT file names with "_"
+    newName="$(echo "$newName" | sed 's/[\/\\:*?"<>|[:cntrl:]]/_/g')"
+
+    #move file
+    if [ "$oldName" != "$newName" ] ; then
+        mv "$dir""$oldName" "$dir""$newName" &> /dev/null
+        echo "Renamed \"$dir$oldName\" to \"$newName\""
+    fi
+}
+
+#process options
+options="$(getopt -n "nameMusic" -o h -l help -- "$@")"
+
+#put formatted options into commandline options
+eval set -- "$options"
+
+while true ; do
+    case $1 in
+        -h|--help) #print help
+            help
+            exit;;
+        --) #end of options
+            shift
+            break;;
+    esac
+done
+#initial main funcion call
+main "$@"
+
