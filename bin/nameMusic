@@ -42,11 +42,11 @@ main() {
 flacFormat() {
     format="flac"
 
-    tracknumber="$(metaflac --show-tag='tracknumber' "$dir""$oldName" | sed 's/^TRACKNUMBER=//')"
+    tracknumber="$(metaflac --show-tag='tracknumber' "$dir""$oldName" | sed 's/^TRACKNUMBER=//I')"
 
-    artist="$(metaflac --show-tag='artist' "$dir""$oldName" | sed 's/^ARTIST=//')"
+    artist="$(metaflac --show-tag='artist' "$dir""$oldName" | sed 's/^ARTIST=//I')"
 
-    title="$(metaflac --show-tag='title' "$dir""$oldName" | sed 's/^TITLE=//')"
+    title="$(metaflac --show-tag='title' "$dir""$oldName" | sed 's/^TITLE=//I')"
 
     moveFile
 }
@@ -54,6 +54,7 @@ flacFormat() {
 mp3Format() {
     format="mp3"
 
+    # this is really slow, condense to single ffprobe call or use alternative mp3 file metadata tool
     tracknumber="$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
 
     artist="$(ffprobe -loglevel error -show_entries format_tags=artist -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
