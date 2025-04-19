@@ -61,9 +61,9 @@ endif
     "use spaces instead of tab characters
     set expandtab
     "set number of characters autoindented after pressing return
-    set shiftwidth=4
+    set shiftwidth=2
     "set number of characters indented when pressing tab
-    set tabstop=4
+    set tabstop=2
     "show whitespace
     set list
     "show tabs as '>-' and trailing whitespace as '-'
