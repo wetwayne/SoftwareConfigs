@@ -2,7 +2,7 @@
 
 help() {
   echo
-  echo "This program will rename music files with the format 'tracknumber - artist - title'."
+  echo "This program will rename music files with the format 'trackNumber - artist - title'."
   echo
   echo "Provide the music files you wish to rename to this program as arguments."
   echo "Also works with directories."
@@ -10,72 +10,83 @@ help() {
 }
 
 main() {
+  local fileDirectory="$1"
   #is empty?
-  if [ -z "$1" ] ; then
+  if [ -z "$fileDirectory" ] ; then
     return
   fi
   #is a directory?
-  if [ -d "$1" ] ; then
-    cd "$1"
-    echo "Entered directory \"$1\""
+  if [ -d "$fileDirectory" ] ; then
+    cd "$fileDirectory"
+    echo "Entered directory \"$fileDirectory\""
     main *
     cd ".."
-    echo "Exited directory \"$1\""
+    echo "Exited directory \"$fileDirectory\""
   fi
   #separate old name from directory
-  oldName="$(basename "$1")"
+  local oldName="$(basename "$fileDirectory")"
 
-  lengthOfDirectoryString=$((${#1}-${#oldName}))
-  dir="${1:0:$lengthOfDirectoryString}"
+  local lengthOfDirectoryString=$((${#1}-${#oldName}))
+  local dir="${fileDirectory:0:$lengthOfDirectoryString}"
 
   #is a flac file?
   if [[ "$oldName" =~ flac$ ]] ; then
-    flacFormat
+    flacFormat "$dir" "$oldName"
   #is a mp3 file?
   elif [[ "$oldName" =~ mp3$ ]] ; then
-    mp3Format
+    mp3Format "$dir" "$oldName"
   fi
   shift
   main "$@"
 }
 
 flacFormat() {
-  format="flac"
+  local dir="$1"
+  local oldName="$2"
+  local format="flac"
 
-  tracknumber="$(metaflac --show-tag='tracknumber' "$dir""$oldName" | sed 's/^TRACKNUMBER=//I')"
+  local trackNumber="$(metaflac --show-tag='tracknumber' "$dir""$oldName" | sed 's/^TRACKNUMBER=//I')"
 
-  artist="$(metaflac --show-tag='artist' "$dir""$oldName" | sed 's/^ARTIST=//I')"
+  local artist="$(metaflac --show-tag='artist' "$dir""$oldName" | sed 's/^ARTIST=//I')"
 
-  title="$(metaflac --show-tag='title' "$dir""$oldName" | sed 's/^TITLE=//I')"
+  local title="$(metaflac --show-tag='title' "$dir""$oldName" | sed 's/^TITLE=//I')"
 
-  moveFile
+  moveFile "$dir" "$oldName" "$format" "$artist" "$title" "$trackNumber"
 }
 
 mp3Format() {
-  format="mp3"
+  local dir="$1"
+  local oldName="$2"
+  local format="mp3"
 
   # this is really slow, condense to single ffprobe call or use alternative mp3 file metadata tool
-  tracknumber="$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
+  local trackNumber="$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
 
-  artist="$(ffprobe -loglevel error -show_entries format_tags=artist -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
+  local artist="$(ffprobe -loglevel error -show_entries format_tags=artist -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
 
-  title="$(ffprobe -loglevel error -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
+  local title="$(ffprobe -loglevel error -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 "$dir""$oldName")"
 
-  moveFile
+  moveFile "$dir" "$oldName" "$format" "$artist" "$title" "$trackNumber"
 }
 
 moveFile() {
-  if [ -z "$tracknumber" ] ; then
-    tracknumber="0"
+  local dir="$1"
+  local oldName="$2"
+  local format="$3"
+  local artist="$4"
+  local title="$5"
+  local trackNumber="$6"
+  if [ -z "$trackNumber" ] ; then
+    trackNumber="0"
   fi
   #remove leading 0's
-  if [[ "$tracknumber" =~ ^0[0-9]+$ ]] ; then
-    tracknumber="${tracknumber:1}"
+  if [[ "$trackNumber" =~ ^0[0-9]+$ ]] ; then
+    trackNumber="${trackNumber:1}"
   fi
   #remove / in track number
-  tracknumber="$(echo "$tracknumber" | sed 's/\/.*$//')"
+  trackNumber="$(echo "$trackNumber" | sed 's/\/.*$//')"
   #create file name
-  newName="$(printf "%.2d - %s - %s.%s" "$tracknumber" "$artist" "$title" "$format")"
+  local newName="$(printf "%.2d - %s - %s.%s" "$trackNumber" "$artist" "$title" "$format")"
 
   #replace characters not allowed in exFAT file names with "_"
   newName="$(echo "$newName" | sed 's/[\/\\:*?"<>|[:cntrl:]]/_/g')"
